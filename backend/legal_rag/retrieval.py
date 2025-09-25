@@ -3,8 +3,8 @@
 import os
 from langchain_core.tools import tool
 from langchain_community.vectorstores import FAISS
-from langchain_community.embeddings import HuggingFaceEmbeddings
-from langchain_community.tools.tavily_search import TavilySearchResults
+from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_tavily import TavilySearch
 from langchain_core.runnables import RunnableParallel
 from langchain_core.documents import Document  # <-- NEW: Import Document
 from langchain_core.messages import BaseMessage  # <-- FIX: Import BaseMessage
@@ -72,7 +72,8 @@ def perform_research(state: AgentState) -> dict:
     if not tavily_api_key:
         raise ValueError("TAVILY_API_KEY environment variable not set.")
 
-    web_search_tool = TavilySearchResults(max_results=5, tavily_api_key=tavily_api_key)
+    # This is the updated TavilySearch class name
+    web_search_tool = TavilySearch(max_results=5, tavily_api_key=tavily_api_key)
 
     rag_chain = RunnableParallel(
         {
@@ -84,9 +85,10 @@ def perform_research(state: AgentState) -> dict:
     results = rag_chain.invoke({"query": query})
 
     faiss_docs = results.get("faiss_search_results", [])
-    web_results_list = results.get("web_search_results", [])
+    # This is now a list of strings
+    web_results_list_of_strings = results.get("web_search_results", [])
 
-    # Extract source metadata and create a single list of sources
+    # --- THIS IS THE CORRECTED LOGIC ---
     sources = []
 
     # Process FAISS sources
@@ -96,19 +98,20 @@ def perform_research(state: AgentState) -> dict:
         if doc.metadata:
             sources.append({"type": "document", "metadata": doc.metadata})
 
-    # Process web sources
+    # Process web sources (now correctly handles a list of strings)
     web_content = ""
-    for item in web_results_list:
-        web_content += item.get("content", "") + "\n\n"
+    for result_string in web_results_list_of_strings:
+        web_content += result_string + "\n\n"
+        # Since we only get the content string, we can't extract a separate URL/title.
+        # We'll just add the content as the source.
         sources.append(
             {
                 "type": "web",
-                "url": item.get("url", "N/A"),
-                "title": item.get("title", "N/A"),
+                "content": result_string,
             }
         )
 
-    print("RAW RESULTS:", {"faiss": faiss_content, "web": web_content})
+    print("---RESEARCH COMPLETE---")
 
     return {
         "faiss_search_results": faiss_content,

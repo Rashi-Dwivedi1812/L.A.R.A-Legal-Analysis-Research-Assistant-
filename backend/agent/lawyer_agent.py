@@ -1,3 +1,6 @@
+# FILE: backend/agent/lawyer_agent.py
+
+import os # <-- Add os import
 from typing import TypedDict, Annotated, List, Any
 import operator
 from langchain_core.messages import BaseMessage
@@ -12,6 +15,16 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+# --- Configuration & Validation (Consistent with other agents) ---
+# It's good practice to include this check in any file that relies on these keys.
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+TAVILY_API_KEY = os.getenv("TAVILY_API_KEY")
+
+if not TAVILY_API_KEY or not GROQ_API_KEY:
+    raise ValueError(
+        "API keys for Tavily and Grok are not set. Please add them to your .env file."
+    )
+
 
 # --- State Management with LangGraph ---
 class LawyerAgentState(TypedDict):
@@ -24,8 +37,8 @@ class LawyerAgentState(TypedDict):
     final_analysis: str
     research_complete: bool
     chat_history: List[BaseMessage]
-    sources: Annotated[List[dict], operator.add]  # <-- NEW: To store source metadata
-    role: str  # <-- NEW: To store the user's role
+    sources: Annotated[List[dict], operator.add]
+    role: str
 
 
 # --- Workflow Decision Logic ---
